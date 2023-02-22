@@ -1,4 +1,6 @@
---------------------first create .php file for API--------------------
+---------------------create database name "android" and take 4 field (id	courseName	courseDuration	courseDescription)------------------------
+
+--------------------first create addCourses.php file for API--------------------
 <?php
 
 $servername = "localhost";
