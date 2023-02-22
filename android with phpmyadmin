@@ -1,0 +1,241 @@
+--------------------first create .php file for API--------------------
+<?php
+
+$servername = "localhost";
+$username = "root";
+$password = "";
+$dbname = "android";
+$conn = new mysqli($servername, $username, $password, $dbname);
+$response = array();
+if ($_POST['courseName'] && $_POST['courseDuration'] && $_POST['courseDescription'])
+{
+   
+    $courseName = $_POST['courseName'];
+    $courseDuration = $_POST['courseDuration'];
+    $courseDescription = $_POST['courseDescription'];
+    
+    $stmt = $conn->prepare("INSERT INTO `courseDb`(`courseName`, `courseDuration`, `courseDescription`) VALUES (?,?,?)");
+    $stmt->bind_param("sss", $courseName, $courseDuration, $courseDescription);
+    
+    if ($stmt->execute() == TRUE)
+    {
+      
+        $response['error'] = false;
+        $response['message'] = "course created successfully!";
+    }
+    else
+    {
+        
+        $response['error'] = true;
+        $response['message'] = "failed\n " . $conn->error;
+    }
+}
+else
+{
+
+    $response['error'] = true;
+    $response['message'] = "Insufficient parameters";
+}
+
+echo json_encode($response);
+?>
+
+------------manifist file uses permissions----------------
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    
+--------------build.gradle dependecy--------------------
+implementation 'com.android.volley:volley:1.2.1'
+
+-------------------create xml file---------------------
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <EditText
+        android:id="@+id/idEdtCourseName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
+        android:hint="Course Name"
+        android:importantForAutofill="no"
+        android:inputType="text" />
+
+    <!--Edittext for getting course Duration-->
+    <EditText
+        android:id="@+id/idEdtCourseDuration"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
+        android:hint="Course Duration in min"
+        android:importantForAutofill="no"
+        android:inputType="time" />
+
+    <!--Edittext for getting course Description-->
+    <EditText
+        android:id="@+id/idEdtCourseDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
+        android:hint="Course Description"
+        android:importantForAutofill="no"
+        android:inputType="text" />
+
+    <!--Button for adding your course to Firebase-->
+    <Button
+        android:id="@+id/idBtnSubmitCourse"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="10dp"
+        android:text="Submit Course Details"
+        android:textAllCaps="false" />
+    <EditText
+        android:id="@+id/Edit4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginEnd="10dp"
+        android:hint="enter ip"
+        android:importantForAutofill="no"
+        android:inputType="text" />
+
+</LinearLayout>
+
+
+
+--------------MainActivity.java file----------------------
+package com.example.phpwithandroid;
+
+import androidx.appcompat.app.AppCompatActivity;
+
+import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.Toast;
+
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.StringRequest;
+import com.android.volley.toolbox.Volley;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class MainActivity extends AppCompatActivity {
+
+    private EditText courseNameEdt, courseDurationEdt, courseDescriptionEdt,enterip;
+    private Button submitCourseBtn;
+    private String courseName, courseDuration, courseDescription;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+        courseNameEdt = findViewById(R.id.idEdtCourseName);
+        courseDescriptionEdt = findViewById(R.id.idEdtCourseDescription);
+        courseDurationEdt = findViewById(R.id.idEdtCourseDuration);
+        submitCourseBtn = findViewById(R.id.idBtnSubmitCourse);
+        enterip=findViewById(R.id.Edit4);
+        submitCourseBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+
+                courseName = courseNameEdt.getText().toString();
+                courseDescription = courseDescriptionEdt.getText().toString();
+                courseDuration = courseDurationEdt.getText().toString();
+
+
+                if (TextUtils.isEmpty(courseName)) {
+                    courseNameEdt.setError("Please enter Course Name");
+                } else if (TextUtils.isEmpty(courseDescription)) {
+                    courseDescriptionEdt.setError("Please enter Course Description");
+                } else if (TextUtils.isEmpty(courseDuration)) {
+                    courseDurationEdt.setError("Please enter Course Duration");
+                } else {
+
+                    addDataToDatabase(courseName, courseDescription, courseDuration);
+                }
+            }
+        });
+    }
+
+    private void addDataToDatabase(String courseName, String courseDescription, String courseDuration) {
+
+
+
+        String ip=enterip.getText().toString();
+        //here we are getting system ip address from textbox for ex.192.168.172.19 you can check your ip adress from cmd using ipconfig coomand.
+        String url = "http://"+ip+"/addCourses.php";
+
+
+        RequestQueue queue = Volley.newRequestQueue(MainActivity.this);
+
+
+
+        StringRequest request = new StringRequest(Request.Method.POST, url, new com.android.volley.Response.Listener<String>() {
+            @Override
+            public void onResponse(String response) {
+                Log.e("TAG", "RESPONSE IS " + response);
+                try {
+                    JSONObject jsonObject = new JSONObject(response);
+
+                    Toast.makeText(MainActivity.this, jsonObject.getString("message"), Toast.LENGTH_SHORT).show();
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+
+                courseNameEdt.setText("");
+                courseDescriptionEdt.setText("");
+                courseDurationEdt.setText("");
+            }
+        }, new com.android.volley.Response.ErrorListener() {
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                
+                Toast.makeText(MainActivity.this, "Fail to get response = " + error, Toast.LENGTH_SHORT).show();
+            }
+        }) {
+            @Override
+            public String getBodyContentType() {
+
+                return "application/x-www-form-urlencoded; charset=UTF-8";
+            }
+
+            @Override
+            protected Map<String, String> getParams() {
+
+                Map<String, String> params = new HashMap<String, String>();
+
+                params.put("courseName", courseName);
+                params.put("courseDuration", courseDuration);
+                params.put("courseDescription", courseDescription);
+
+
+                return params;
+            }
+        };
+
+        queue.add(request);
+    }
+}
+
+
